@@ -1,0 +1,1 @@
+# full-cicd-gitops-project
