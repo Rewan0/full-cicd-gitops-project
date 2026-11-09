@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ivolveapp
+  namespace: ivolve
+spec:
+  replicas: 2
+  # The namespace quota allows 3 pods (1 database + 2 application pods),
+  # so a rolling update cannot create a surge pod. Replace pods one at a time.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ivolveapp
+  template:
+    metadata:
+      labels:
+        app: ivolveapp
+    spec:
+      nodeSelector:
+        project: ivolve
+      tolerations:
+        - key: workload
+          operator: Equal
+          value: ivolveApp
+          effect: NoSchedule
+      initContainers:
+        - name: init-db
+          image: mysql:8.0
+          envFrom:
+            - configMapRef:
+                name: ivolve-cm
+            - secretRef:
+                name: ivolve-secret
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              until mysql -h "$DB_HOST" -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1"; do
+                echo "Waiting for MySQL..."; sleep 3
+              done
+              mysql -h "$DB_HOST" -uroot -p"$MYSQL_ROOT_PASSWORD" <<EOF
+              CREATE DATABASE IF NOT EXISTS ivolve;
+              CREATE USER IF NOT EXISTS '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
+              GRANT ALL PRIVILEGES ON ivolve.* TO '${DB_USER}'@'%';
+              FLUSH PRIVILEGES;
+              EOF
+      containers:
+        - name: ivolveapp
+          image: rewan2233/ivolve-app:v1
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: ivolve-cm
+            - secretRef:
+                name: ivolve-secret
+          volumeMounts:
+            - name: app-logs
+              mountPath: /app/logs
+      volumes:
+        - name: app-logs
+          persistentVolumeClaim:
+            claimName: ivolvepvc
