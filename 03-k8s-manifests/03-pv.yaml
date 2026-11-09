@@ -1,0 +1,29 @@
+# hostPath directories must exist on worker-1 before applying:
+#   sudo mkdir -p /mnt/app-logs && sudo chmod 777 /mnt/app-logs
+#   sudo mkdir -p /mnt/mysql-data
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ivolvepv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: /mnt/app-logs
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  hostPath:
+    path: /mnt/mysql-data
