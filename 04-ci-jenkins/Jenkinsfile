@@ -1,0 +1,29 @@
+@Library('shared-lib') _
+
+pipeline {
+    agent { label 'agent-1' }
+
+    environment {
+        IMAGE   = "rewan2233/ivolve-app"
+        TAG     = "${BUILD_NUMBER}"
+        APP_DIR = "Jenkins/Lab22"
+    }
+
+    stages {
+        stage('Build App') {
+            steps { buildApp(APP_DIR) }
+        }
+        stage('Build Image') {
+            steps { buildImage(APP_DIR, IMAGE, TAG, 'dockerhub') }
+        }
+        stage('Deploy to Kubernetes') {
+            steps { deployOnK8s(APP_DIR, IMAGE, TAG, 'k8s-config') }
+        }
+    }
+
+    post {
+        always  { echo 'Pipeline finished' }
+        success { echo 'Deployed successfully' }
+        failure { echo 'Pipeline failed' }
+    }
+}
