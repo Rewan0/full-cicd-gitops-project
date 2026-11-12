@@ -1,9 +1,13 @@
-def call(String appDir, String image, String tag, String kubeCredId) {
-    dir(appDir) {
-        sh "sed -i 's|image: ${image}:.*|image: ${image}:${tag}|' deployment.yaml"
-        withCredentials([file(credentialsId: kubeCredId, variable: 'KUBECONFIG')]) {
-            sh 'kubectl apply -f deployment.yaml'
-            sh 'kubectl rollout status deployment/ivolveapp -n ivolve --timeout=180s'
-        }
+def call(String manifestPath, String image, String tag, String credsId, String branch = 'main') {
+    withCredentials([usernamePassword(credentialsId: credsId,
+                     usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+        sh """
+            sed -i 's|image: ${image}:.*|image: ${image}:${tag}|' ${manifestPath}
+            git config user.email "jenkins@ivolve.local"
+            git config user.name  "jenkins"
+            git add ${manifestPath}
+            git commit -m "Update image to ${image}:${tag} [skip ci]" || echo "No changes to commit"
+            git push https://\${GIT_USER}:\${GIT_PASS}@github.com/Rewan0/iVolve-tasks.git HEAD:${branch}
+        """
     }
 }
